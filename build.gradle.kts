@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.0.20"
-    id("fabric-loom") version "1.7.1"
+    id("fabric-loom") version "1.9.2"
     id("maven-publish")
 }
 
@@ -15,6 +15,7 @@ base {
 }
 
 val targetJavaVersion = 21
+
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
@@ -50,8 +51,9 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
-    // Database
-    include("org.postgresql:postgresql:42.7.4")?.let { implementation(it) }
+    
+    // ORM
+    compileOnly("org.ktorm:ktorm-core:${project.property("ktorm_version")}")
 }
 
 tasks.processResources {
@@ -93,16 +95,15 @@ tasks.jar {
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = project.property("archives_base_name") as String
+            groupId = "maven.modrinth"
+            artifactId = project.property("archives_base_name") as String 
+            version = project.property("mod_version") as String
+
             from(components["java"])
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+        mavenLocal()
     }
 }
