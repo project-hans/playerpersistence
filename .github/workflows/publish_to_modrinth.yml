@@ -1,4 +1,4 @@
-name: Build and Push and Release to Modrinth dev
+name: Build and Push and Release to Modrinth
 on:
   release:
     types: [created]
@@ -9,10 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write # Required to use the GitHub API
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # Ensure `gh` CLI is installed and working
+      - name: Check gh CLI version
+        run: gh --version
+
+      # Authenticate `gh` CLI using GITHUB_TOKEN
+      - name: Authenticate gh CLI
+        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -47,44 +56,41 @@ jobs:
       - name: Remove sources artifact
         run: rm build/libs/*sources.jar
 
-      - name: Rename artifact
-        run: cp build/libs/*.jar build/libs/PlayerPersistence-${{ env.VERSION }}.jar
-
       - name: Publish JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: playerpersistence
           path: build/libs/*.jar
 
-      # Create a new GitHub release
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: v${{ env.VERSION }}
-          release_name: "Release v${{ env.VERSION }}"
-          body: "Auto-generated release for build v${{ env.VERSION }}"
-          draft: false
-          prerelease: false
+      # Fetch the latest GitHub release including the release notes
+      - name: Get the latest release
+        id: get_release
+        run: |
+          RELEASE_DATA=$(gh release view --json body,url --jq '{body: .body, url: .url}')
+          RELEASE_NOTES=$(echo "$RELEASE_DATA" | jq -r .body)
+          RELEASE_URL=$(echo "$RELEASE_DATA" | jq -r .url)
+          echo "LATEST_RELEASE_URL=${RELEASE_URL}" >> $GITHUB_ENV
+          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload the .jar to GitHub release assets
+      # Upload the .jar to the latest GitHub release assets
+      - name: Upload the .jar to the latest release
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/libs/PlayerPersistence-${{ env.VERSION }}.jar
+          upload_url: ${{ env.LATEST_RELEASE_URL }}
+          asset_path: build/libs/playerpersistence-${{ env.VERSION }}.jar
           asset_name: playerpersistence-${{ env.VERSION }}.jar
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload the .jar to Modrinth
+      # Upload the .jar to Modrinth with GitHub release notes as changelog
       - name: Upload to Modrinth
         uses: cloudnode-pro/modrinth-publish@1.0.0
         with:
           token: '${{ secrets.MODRINTH_TOKEN }}' # You need to create this secret in your repository settings
           project: AFthCZHM # Replace with your project id/slug
-          file: 'build/libs/PlayerPersistence-${{ env.VERSION }}.jar' # Make sure that this matches the file name of your .jar
-          changelog: "Auto-generated release for build v${{ env.VERSION }}"
+          file: 'build/libs/playerpersistence-${{ env.VERSION }}.jar' # Make sure that this matches the file name of your .jar
+          changelog: ${{ env.RELEASE_NOTES }}
           loaders: 'fabric, quilt' # A list of your supported loaders

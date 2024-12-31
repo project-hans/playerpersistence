@@ -8,6 +8,7 @@ import net.fabricmc.api.ModInitializer
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.GameMode
 import net.minecraft.world.TeleportTarget
 import java.sql.PreparedStatement
 import java.util.*
@@ -43,6 +44,7 @@ class PlayerPersistence : ModInitializer {
                 uuid UUID PRIMARY KEY,
                 dimension TEXT NOT NULL,
                 coordinates vector3 NOT NULL,
+                gamemode TEXT NOT NULL,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );""".trimIndent()
 
@@ -187,12 +189,13 @@ class PlayerPersistence : ModInitializer {
     fun writePlayerCoordinates(player: ServerPlayerEntity) {
         val serverNode = Database.SERVER_NODE
         val query = """
-        INSERT INTO player_locations_$serverNode (uuid, dimension, coordinates)
+        INSERT INTO player_locations_$serverNode (uuid, dimension, coordinates, gamemode)
         VALUES (?, ?, ROW(?, ?, ?))
         ON CONFLICT (uuid)
         DO UPDATE SET
             dimension = EXCLUDED.dimension,
             coordinates = EXCLUDED.coordinates,
+            gamemode = EXCLUDED.gamemode,
             last_updated = CURRENT_TIMESTAMP;
          """.trimIndent()
 
@@ -202,6 +205,7 @@ class PlayerPersistence : ModInitializer {
             statement.setDouble(3, player.pos.x)
             statement.setDouble(4, player.pos.y)
             statement.setDouble(5, player.pos.z)
+            statement.setString(6, player.interactionManager.gameMode.toString())
             statement.executeUpdate()
         }
     }
@@ -213,7 +217,8 @@ class PlayerPersistence : ModInitializer {
                 dimension,
                 (coordinates).x,
                 (coordinates).y,
-                (coordinates).z
+                (coordinates).z,
+                gamemode
             FROM player_locations_$serverNode
             WHERE uuid = ?
             """.trimIndent()
@@ -226,6 +231,8 @@ class PlayerPersistence : ModInitializer {
                 val x = resultSet.getDouble("x")
                 val y = resultSet.getDouble("y")
                 val z = resultSet.getDouble("z")
+                val gameMode = resultSet.getString("gamemode")
+                player.changeGameMode(GameMode.valueOf(gameMode))
                 player.server.worlds.forEach { world ->
                     if (world.registryKey.value.toString() == dimension) {
                         player.teleportTo(
