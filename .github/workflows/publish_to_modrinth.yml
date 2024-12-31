@@ -54,6 +54,9 @@ jobs:
       - name: Build with Gradle
         run: gradle build --build-cache
 
+      - name: List Files for debugging
+        run: ls -Ra
+
       - name: Remove sources artifact
         run: rm build/libs/*sources.jar
 
