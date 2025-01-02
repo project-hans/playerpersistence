@@ -15,7 +15,6 @@ base {
 }
 
 val targetJavaVersion = 21
-
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
@@ -51,7 +50,7 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
-    
+
     // ORM
     implementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")
     implementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")
@@ -104,7 +103,7 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             groupId = "maven.modrinth"
-            artifactId = project.property("archives_base_name") as String 
+            artifactId = project.property("archives_base_name") as String
             version = project.property("mod_version") as String
 
             from(components["java"])

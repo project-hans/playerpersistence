@@ -3,6 +3,7 @@ package sh.bims.playerpersistence
 import net.fabricmc.api.ModInitializer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec3d
+import net.minecraft.world.GameMode
 import net.minecraft.world.TeleportTarget
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -98,6 +99,7 @@ class PlayerPersistence : ModInitializer {
                 it[uuid] = player.uuid
                 it[node] = serverNode
                 it[dimension] = player.world.registryKey.value.toString()
+                it[gamemode] = player.interactionManager.gameMode.toString()
                 it[x] = player.pos.x
                 it[y] = player.pos.y
                 it[z] = player.pos.z
@@ -116,10 +118,12 @@ class PlayerPersistence : ModInitializer {
 
             location?.let {
                 val dimension = it[table.dimension]
+                val gamemode = it[table.gamemode]
                 val x = it[table.x]
                 val y = it[table.y]
                 val z = it[table.z]
 
+                player.changeGameMode(GameMode.valueOf(gameMode))
                 player.server.worlds.forEach { world ->
                     if (world.registryKey.value.toString() == dimension) {
                         player.teleportTo(
