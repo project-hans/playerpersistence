@@ -123,7 +123,7 @@ class PlayerPersistence : ModInitializer {
                 val y = it[table.y]
                 val z = it[table.z]
 
-                player.changeGameMode(GameMode.valueOf(gameMode))
+                player.changeGameMode(GameMode.valueOf(gamemode))
                 player.server.worlds.forEach { world ->
                     if (world.registryKey.value.toString() == dimension) {
                         player.teleportTo(
