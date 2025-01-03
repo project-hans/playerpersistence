@@ -52,12 +52,12 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
 
     // ORM
-    implementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")
-    implementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")
-    implementation("org.jetbrains.exposed:exposed-dao:${project.property("exposed_version")}")
-    implementation("org.jetbrains.exposed:exposed-jdbc:${project.property("exposed_version")}")
-    implementation("org.jetbrains.exposed:exposed-java-time:${project.property("exposed_version")}")
-    implementation("org.jetbrains.exposed:exposed-json:${project.property("exposed_version")}")
+    implementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-dao:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-jdbc:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-java-time:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-json:${project.property("exposed_version")}")?.let { include(it) }
     
     // Database
     implementation("org.postgresql:postgresql:${project.property("postgresql_version")}")?.let { include(it) }
