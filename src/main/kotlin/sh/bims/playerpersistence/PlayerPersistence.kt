@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package sh.bims.playerpersistence
 
 import net.fabricmc.api.ModInitializer
@@ -109,19 +111,17 @@ class PlayerPersistence : ModInitializer {
     }
 
     fun syncPlayerCoordinates(player: ServerPlayerEntity) {
-        val table = PlayerLocations
-
         transaction {
-            val location = table.selectAll()
-                .where { table.uuid eq player.uuid and (table.node eq serverNode) }
+            val location = PlayerLocations.selectAll()
+                .where { PlayerLocations.uuid eq player.uuid and (PlayerLocations.node eq serverNode) }
                 .singleOrNull()
 
             location?.let {
-                val dimension = it[table.dimension]
-                val gamemode = it[table.gamemode]
-                val x = it[table.x]
-                val y = it[table.y]
-                val z = it[table.z]
+                val dimension = it[PlayerLocations.dimension]
+                val gamemode = it[PlayerLocations.gamemode]
+                val x = it[PlayerLocations.x]
+                val y = it[PlayerLocations.y]
+                val z = it[PlayerLocations.z]
 
                 player.changeGameMode(GameMode.valueOf(gamemode))
                 player.server.worlds.forEach { world ->
