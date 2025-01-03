@@ -72,7 +72,7 @@ class PlayerPersistence : ModInitializer {
     fun writeInventory(uuid: UUID, inventoryData: String) {
         transaction {
             PlayerInventories.upsert(
-                PlayerInventories.uuid, PlayerInventories.inventoryData, PlayerInventories.lastUpdated
+                PlayerInventories.uuid
             ) {
                 it[this.uuid] = uuid
                 it[this.inventoryData] = inventoryData
@@ -84,7 +84,7 @@ class PlayerPersistence : ModInitializer {
     fun writeEnderChest(uuid: UUID, playerEnderChestData: String) {
         transaction {
             PlayerEnderchests.upsert(
-                PlayerEnderchests.chestData, PlayerEnderchests.lastUpdated
+                PlayerEnderchests.uuid
             ) {
                 it[this.uuid] = uuid
                 it[this.chestData] = playerEnderChestData
@@ -96,7 +96,7 @@ class PlayerPersistence : ModInitializer {
     fun writePlayerCoordinates(player: ServerPlayerEntity) {
         transaction {
             PlayerLocations.upsert(
-                PlayerLocations.uuid, PlayerLocations.node, PlayerLocations.dimension
+                PlayerLocations.uuid, PlayerLocations.node
             ) {
                 it[uuid] = player.uuid
                 it[node] = serverNode
