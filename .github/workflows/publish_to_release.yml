@@ -1,5 +1,4 @@
-name: Release to Modrinth
-
+name: Build and Push and Release to Modrinth
 on:
   release:
     types: [created]
@@ -88,13 +87,3 @@ jobs:
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Upload the .jar to Modrinth with GitHub release notes as changelog
-      - name: Upload to Modrinth
-        uses: cloudnode-pro/modrinth-publish@1.0.0
-        with:
-          token: '${{ secrets.MODRINTH_TOKEN }}' # You need to create this secret in your repository settings
-          project: AFthCZHM # Replace with your project id/slug
-          file: 'build/libs/player-persistence-${{ env.VERSION }}.jar' # Make sure that this matches the file name of your .jar
-          changelog: ${{ env.RELEASE_NOTES }}
-          loaders: 'fabric, quilt' # A list of your supported loaders

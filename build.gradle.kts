@@ -50,6 +50,15 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
+
+    // ORM
+    implementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-dao:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-jdbc:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-java-time:${project.property("exposed_version")}")?.let { include(it) }
+    implementation("org.jetbrains.exposed:exposed-json:${project.property("exposed_version")}")?.let { include(it) }
+    
     // Database
     implementation("org.postgresql:postgresql:${project.property("postgresql_version")}")?.let { include(it) }
 }
@@ -93,16 +102,15 @@ tasks.jar {
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
+            groupId = "maven.modrinth"
             artifactId = project.property("archives_base_name") as String
+            version = project.property("mod_version") as String
+
             from(components["java"])
         }
     }
 
-    // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
     repositories {
-        // Add repositories to publish to here.
-        // Notice: This block does NOT have the same function as the block in the top level.
-        // The repositories here will be used for publishing your artifact, not for
-        // retrieving dependencies.
+        mavenLocal()
     }
 }
