@@ -53,13 +53,16 @@ jobs:
       - name: Build with Gradle
         run: gradle build --build-cache
 
+      - name: List Files for debugging
+        run: ls -Ra
+
       - name: Remove sources artifact
         run: rm build/libs/*sources.jar
 
       - name: Publish JAR Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: playerpersistence
+          name: player-persistence
           path: build/libs/*.jar
 
       # Fetch the latest GitHub release including the release notes
@@ -79,18 +82,8 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ env.LATEST_RELEASE_URL }}
-          asset_path: build/libs/playerpersistence-${{ env.VERSION }}.jar
-          asset_name: playerpersistence-${{ env.VERSION }}.jar
+          asset_path: build/libs/player-persistence-${{ env.VERSION }}.jar
+          asset_name: player-persistence-${{ env.VERSION }}.jar
           asset_content_type: application/java-archive
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Upload the .jar to Modrinth with GitHub release notes as changelog
-      - name: Upload to Modrinth
-        uses: cloudnode-pro/modrinth-publish@1.0.0
-        with:
-          token: '${{ secrets.MODRINTH_TOKEN }}' # You need to create this secret in your repository settings
-          project: AFthCZHM # Replace with your project id/slug
-          file: 'build/libs/playerpersistence-${{ env.VERSION }}.jar' # Make sure that this matches the file name of your .jar
-          changelog: ${{ env.RELEASE_NOTES }}
-          loaders: 'fabric, quilt' # A list of your supported loaders
