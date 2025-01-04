@@ -3,7 +3,6 @@ package sh.bims.playerpersistence
 import org.jetbrains.exposed.sql.Database
 import org.postgresql.util.PSQLException
 import java.sql.DriverManager
-
 object DatabaseManager {
     private lateinit var databaseInstance: Database
     private lateinit var serverNodeValue: String
@@ -41,9 +40,7 @@ object DatabaseManager {
         try {
             DriverManager.getConnection(baseUrl, user, password).use { connection ->
                 val statement = connection.createStatement()
-
                 statement.execute("CREATE DATABASE IF NOT EXISTS $dbName")
-                PlayerPersistence.logger.info("Database '$dbName' created successfully.")
             }
         } catch (error: PSQLException) {
             PlayerPersistence.logger.error("Failed to ensure database exists: ${error.message}", error)
