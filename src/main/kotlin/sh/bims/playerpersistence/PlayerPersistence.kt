@@ -3,12 +3,16 @@
 package sh.bims.playerpersistence
 
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.loader.api.FabricLoader
+import net.fabricmc.loader.api.metadata.ModMetadata
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.util.math.Vec3d
 import net.minecraft.world.GameMode
 import net.minecraft.world.TeleportTarget
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import sh.bims.playerpersistence.tables.PlayerEnderchests
 import sh.bims.playerpersistence.tables.PlayerInventories
 import sh.bims.playerpersistence.tables.PlayerLocations
@@ -16,6 +20,11 @@ import java.time.Instant
 import java.util.*
 
 class PlayerPersistence : ModInitializer {
+    companion object {
+        private var modMetadata: ModMetadata = FabricLoader.getInstance().getModContainer("playerpersistence").get().metadata
+        var logger: Logger = LoggerFactory.getLogger(modMetadata.id)
+    }
+    
     private var url: String = ""
     private var user: String = ""
     private var pass: String = ""
@@ -28,25 +37,29 @@ class PlayerPersistence : ModInitializer {
         this.serverNode = serverNode
 
         if (url.isEmpty() || user.isEmpty() || pass.isEmpty() || serverNode.isEmpty()) {
-            throw IllegalArgumentException("PlayerPersistence: All parameters (url, user, pass, serverNode) must be non-empty.")
+            logger.error("Initialization failed: One or more parameters (url, user, pass, serverNode) are empty.")
+            throw IllegalArgumentException("All parameters (url, user, pass, serverNode) must be non-empty.")
         }
 
-        DatabaseManager.initialize(url, user, pass, serverNode)
-        println("PlayerPersistence: Initialized for server node: $serverNode")
+        try {
+            DatabaseManager.initialize(url, user, pass, serverNode)
+            logger.info("DatabaseManager initialized successfully for server node: $serverNode")
 
-        transaction {
-            addLogger(StdOutSqlLogger)
-
-            SchemaUtils.create(PlayerEnderchests)
-            SchemaUtils.create(PlayerInventories)
-            SchemaUtils.create(PlayerLocations)
+            transaction {
+                addLogger(StdOutSqlLogger)
+                SchemaUtils.createMissingTablesAndColumns(PlayerEnderchests, PlayerInventories, PlayerLocations)
+            }
+            logger.info("Database schemas created/updated successfully for server node: $serverNode.")
+        } catch (error: Exception) {
+            logger.error("Error during initialization: ${error.message}", error)
+            throw error
         }
     }
     
     override fun onInitialize() {
-        println("PlayerPersistence: Loaded library.")
+        logger.info("Loaded library.")
     }
-
+    
     fun syncInventoryData(player: ServerPlayerEntity) {
         transaction {
             val inventoryData = PlayerInventories
