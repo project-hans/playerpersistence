@@ -42,17 +42,8 @@ object DatabaseManager {
             DriverManager.getConnection(baseUrl, user, password).use { connection ->
                 val statement = connection.createStatement()
 
-                // Check if the database exists
-                val checkDatabaseExistsQuery = "SELECT 1 FROM pg_database WHERE datname = '$dbName'"
-                val resultSet = statement.executeQuery(checkDatabaseExistsQuery)
-
-                if (!resultSet.next()) {
-                    PlayerPersistence.logger.info("Database '$dbName' does not exist. Creating it now...")
-                    statement.execute("CREATE DATABASE $dbName")
-                    PlayerPersistence.logger.info("Database '$dbName' created successfully.")
-                } else {
-                    PlayerPersistence.logger.info("Database '$dbName' already exists. Skipping creation.")
-                }
+                statement.execute("CREATE DATABASE IF NOT EXISTS $dbName")
+                PlayerPersistence.logger.info("Database '$dbName' created successfully.")
             }
         } catch (error: PSQLException) {
             PlayerPersistence.logger.error("Failed to ensure database exists: ${error.message}", error)
