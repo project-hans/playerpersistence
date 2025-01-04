@@ -1,8 +1,8 @@
 package sh.bims.playerpersistence
 
 import org.jetbrains.exposed.sql.Database
+import org.postgresql.util.PSQLException
 import java.sql.DriverManager
-import java.sql.SQLException
 
 object DatabaseManager {
     private lateinit var databaseInstance: Database
@@ -54,7 +54,7 @@ object DatabaseManager {
                     PlayerPersistence.logger.info("Database '$dbName' already exists. Skipping creation.")
                 }
             }
-        } catch (error: SQLException) {
+        } catch (error: PSQLException) {
             PlayerPersistence.logger.error("Failed to ensure database exists: ${error.message}", error)
             throw error
         }
