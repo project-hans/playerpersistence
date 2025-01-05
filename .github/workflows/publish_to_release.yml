@@ -59,31 +59,9 @@ jobs:
       - name: Remove sources artifact
         run: rm build/libs/*sources.jar
 
-      - name: Publish JAR Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: player-persistence
-          path: build/libs/*.jar
-
-      # Fetch the latest GitHub release including the release notes
-      - name: Get the latest release
-        id: get_release
-        run: |
-          RELEASE_DATA=$(gh release view --json body,url --jq '{body: .body, url: .url}')
-          RELEASE_NOTES=$(echo "$RELEASE_DATA" | jq -r .body)
-          RELEASE_URL=$(echo "$RELEASE_DATA" | jq -r .url)
-          echo "LATEST_RELEASE_URL=${RELEASE_URL}" >> $GITHUB_ENV
-          echo "RELEASE_NOTES=${RELEASE_NOTES}" >> $GITHUB_ENV
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       # Upload the .jar to the latest GitHub release assets
       - name: Upload the .jar to the latest release
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ env.LATEST_RELEASE_URL }}
-          asset_path: build/libs/player-persistence-${{ env.VERSION }}.jar
-          asset_name: player-persistence-${{ env.VERSION }}.jar
-          asset_content_type: application/java-archive
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: build/libs/player-persistence-${{ env.VERSION }}.jar
+          token: ${{ secrets.GITHUB_TOKEN }}
