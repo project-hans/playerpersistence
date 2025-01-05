@@ -40,7 +40,7 @@ object DatabaseManager {
         try {
             DriverManager.getConnection(baseUrl, user, password).use { connection ->
                 val statement = connection.createStatement()
-                statement.execute("CREATE DATABASE IF NOT EXISTS $dbName")
+                statement.execute("CREATE DATABASE $dbName IF NOT EXISTS ")
             }
         } catch (error: PSQLException) {
             PlayerPersistence.logger.error("Failed to ensure database exists: ${error.message}", error)
