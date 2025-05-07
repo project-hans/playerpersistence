@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.0.20"
-    id("fabric-loom") version "1.9.2"
+    id("fabric-loom") version "1.10.2"
     id("maven-publish")
 }
 
@@ -52,15 +52,15 @@ dependencies {
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
 
     // ORM
-    modImplementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")
-    modImplementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")
-    modImplementation("org.jetbrains.exposed:exposed-dao:${project.property("exposed_version")}")
-    modImplementation("org.jetbrains.exposed:exposed-jdbc:${project.property("exposed_version")}")
-    modImplementation("org.jetbrains.exposed:exposed-java-time:${project.property("exposed_version")}")
-    modImplementation("org.jetbrains.exposed:exposed-json:${project.property("exposed_version")}")
+    modImplementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")?.let { include(it) }
+    modImplementation("org.jetbrains.exposed:exposed-crypt:${project.property("exposed_version")}")?.let { include(it) }
+    modImplementation("org.jetbrains.exposed:exposed-dao:${project.property("exposed_version")}")?.let { include(it) }
+    modImplementation("org.jetbrains.exposed:exposed-jdbc:${project.property("exposed_version")}")?.let { include(it) }
+    modImplementation("org.jetbrains.exposed:exposed-java-time:${project.property("exposed_version")}")?.let { include(it) }
+    modImplementation("org.jetbrains.exposed:exposed-json:${project.property("exposed_version")}")?.let { include(it) }
     
     // Database
-    modImplementation("org.postgresql:postgresql:${project.property("postgresql_version")}")
+    modImplementation("org.postgresql:postgresql:${project.property("postgresql_version")}")?.let { include(it) }
 }
 
 tasks.processResources {
