@@ -66,7 +66,6 @@ class PlayerPersistence : ModInitializer {
                 .select(PlayerInventories.inventoryData)
                 .where { PlayerInventories.uuid eq player.uuid }
                 .singleOrNull()?.get(PlayerInventories.inventoryData)
-
             inventoryData?.let { Serialization.deserializeInventory(player, it) }
         }
     }
@@ -152,5 +151,21 @@ class PlayerPersistence : ModInitializer {
                 }
             }
         }
+    }
+
+    fun writePlayerData(player: ServerPlayerEntity){
+        logger.info("PP syncing Inventories on leave")
+        val inv = Serialization.serializeInventory(player)
+        writeInventory(player.uuid, inv)
+        val chest = Serialization.serializeEnderChest(player)
+        writeEnderChest(player.uuid, chest)
+        writePlayerCoordinates(player)
+    }
+
+    fun syncPlayerData(player: ServerPlayerEntity){
+        logger.info("PP syncing Inventories on join")
+        syncInventoryData(player)
+        syncEnderChestData(player)
+        syncPlayerCoordinates(player)
     }
 }
