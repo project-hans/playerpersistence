@@ -7,13 +7,19 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.inventory.Inventory
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
+import com.google.gson.JsonElement
+import com.mojang.serialization.DynamicOps
+import net.minecraft.registry.DynamicRegistryManager    // = RegistryAccess
+import net.minecraft.registry.RegistryOps
+import org.jetbrains.exposed.sql.exposedLogger
 
 object Serialization {
+
     fun serializeInventory(player: ServerPlayerEntity): String {
         val invArray = JsonArray()
         // Serialize armor slots
         for (i in 0..<player.inventory.size()) {
-            serializeStack(player.inventory.getStack(i), i)?.let { invArray.add(it) }
+            serializeStack(player.inventory.getStack(i), i, player.serverWorld.registryManager)?.let { invArray.add(it) }
         }
         return invArray.toString()
     }
@@ -21,44 +27,70 @@ object Serialization {
     fun serializeEnderChest(player: ServerPlayerEntity): String {
         val enderChestArray = JsonArray()
         player.enderChestInventory.heldStacks.forEachIndexed { index, itemStack ->
-            serializeStack(itemStack, index)?.let { enderChestArray.add(it) }
+            serializeStack(itemStack, index, player.serverWorld.registryManager)?.let { enderChestArray.add(it) }
         }
         return enderChestArray.toString()
     }
 
-    private fun serializeStack(itemStack: ItemStack, index: Int): JsonObject? {
-        val jsonOps = JsonOps.INSTANCE
-        if (!itemStack.isEmpty) {
-            val itemJson = ItemStack.CODEC.encodeStart(jsonOps, itemStack).result().orElse(null)
-            if (itemJson != null) {
-                return JsonObject().apply {
-                    addProperty("Slot", index)
-                    add("ItemStack", itemJson)
-                }
+    private fun serializeStack(
+        stack: ItemStack,
+        slot: Int,
+        registries: DynamicRegistryManager
+    ): JsonObject? {
+        if (stack.isEmpty) return null
+
+        // Yarn/Fabric: use RegistryOps.of(...)
+        val jsonOps: DynamicOps<JsonElement> =
+            RegistryOps.of(JsonOps.INSTANCE, registries)
+
+        val stackJson = ItemStack.CODEC.encodeStart(jsonOps, stack)
+            .resultOrPartial { msg -> exposedLogger.warn("Could not serialise stack: {}", msg) }
+            .orElse(null)
+
+        return stackJson?.let { json ->
+            JsonObject().apply {
+                addProperty("Slot", slot)
+                add("ItemStack", json)
             }
         }
-        return null
     }
 
     fun deserializeInventory(player: ServerPlayerEntity, inventoryData: String) {
-        deserializeStacks(player.inventory, inventoryData)
+        deserializeStacks(player.inventory, inventoryData, player.serverWorld.registryManager)
     }
 
     fun deserializeEnderChest(player: ServerPlayerEntity, enderChestData: String) {
-        deserializeStacks(player.enderChestInventory, enderChestData)
+        deserializeStacks(player.enderChestInventory, enderChestData, player.serverWorld.registryManager)
     }
 
-    fun deserializeStacks(inventory: Inventory, stackData: String) {
-        val jsonOps = JsonOps.INSTANCE
+    private fun deserializeStacks(
+        inventory: Inventory,
+        stackData: String,
+        registries: DynamicRegistryManager
+    ) {
+        // Registry-aware ops
+        val jsonOps: DynamicOps<JsonElement> =
+            RegistryOps.of(JsonOps.INSTANCE, registries)
+
         val jsonArray = JsonParser.parseString(stackData).asJsonArray
         inventory.clear()
-        jsonArray.forEach { jsonElement ->
-            val jsonObject = jsonElement.asJsonObject
-            val slot = jsonObject["Slot"].asInt
-            val itemJson = jsonObject["ItemStack"]
 
-            val itemStack = ItemStack.CODEC.parse(jsonOps, itemJson).result().orElse(ItemStack.EMPTY)
-            inventory.setStack(slot, itemStack)
+        jsonArray.forEach { element ->
+            val obj = element.asJsonObject
+            val slot = obj["Slot"].asInt
+            val itemJson = obj["ItemStack"]
+
+            val stack = ItemStack.CODEC.parse(jsonOps, itemJson)
+                .resultOrPartial { msg ->
+                    exposedLogger.warn("Could not parse stack in slot {}: {}", slot, msg)
+                }
+                .orElse(ItemStack.EMPTY)
+
+            if (slot in 0 until inventory.size()) {
+                inventory.setStack(slot, stack)
+            } else {
+                exposedLogger.warn("Slot {} is outside inventory bounds (size {})", slot, inventory.size())
+            }
         }
     }
 }
