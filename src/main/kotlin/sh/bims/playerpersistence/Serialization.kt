@@ -19,7 +19,7 @@ object Serialization {
         val invArray = JsonArray()
         // Serialize armor slots
         for (i in 0..<player.inventory.size()) {
-            serializeStack(player.inventory.getStack(i), i, player.serverWorld.registryManager)?.let { invArray.add(it) }
+            serializeStack(player.inventory.getStack(i), i, player.server.registryManager)?.let { invArray.add(it) }
         }
         return invArray.toString()
     }
@@ -27,48 +27,40 @@ object Serialization {
     fun serializeEnderChest(player: ServerPlayerEntity): String {
         val enderChestArray = JsonArray()
         player.enderChestInventory.heldStacks.forEachIndexed { index, itemStack ->
-            serializeStack(itemStack, index, player.serverWorld.registryManager)?.let { enderChestArray.add(it) }
+            serializeStack(itemStack, index, player.server.registryManager)?.let { enderChestArray.add(it) }
         }
         return enderChestArray.toString()
     }
 
-    private fun serializeStack(
-        stack: ItemStack,
-        slot: Int,
-        registries: DynamicRegistryManager
-    ): JsonObject? {
-        if (stack.isEmpty) return null
+    private fun serializeStack(itemStack: ItemStack, index: Int, registries: DynamicRegistryManager): JsonObject? {
+        if (itemStack.isEmpty) return null                       // nothing to do
 
-        // Yarn/Fabric: use RegistryOps.of(...)
         val jsonOps: DynamicOps<JsonElement> =
             RegistryOps.of(JsonOps.INSTANCE, registries)
 
-        val stackJson = ItemStack.CODEC.encodeStart(jsonOps, stack)
-            .resultOrPartial { msg -> exposedLogger.warn("Could not serialise stack: {}", msg) }
+        val stackJson = ItemStack.CODEC.encodeStart(jsonOps, itemStack)
+            .resultOrPartial { msg ->
+                exposedLogger.warn("Could not serialise stack in slot {}: {}", index, msg)
+            }
             .orElse(null)
 
         return stackJson?.let { json ->
             JsonObject().apply {
-                addProperty("Slot", slot)
+                addProperty("Slot", index)
                 add("ItemStack", json)
             }
         }
     }
 
     fun deserializeInventory(player: ServerPlayerEntity, inventoryData: String) {
-        deserializeStacks(player.inventory, inventoryData, player.serverWorld.registryManager)
+        deserializeStacks(player.inventory, inventoryData, player.server.registryManager)
     }
 
     fun deserializeEnderChest(player: ServerPlayerEntity, enderChestData: String) {
-        deserializeStacks(player.enderChestInventory, enderChestData, player.serverWorld.registryManager)
+        deserializeStacks(player.enderChestInventory, enderChestData, player.server.registryManager)
     }
 
-    private fun deserializeStacks(
-        inventory: Inventory,
-        stackData: String,
-        registries: DynamicRegistryManager
-    ) {
-        // Registry-aware ops
+    fun deserializeStacks(inventory: Inventory, stackData: String, registries: DynamicRegistryManager) {
         val jsonOps: DynamicOps<JsonElement> =
             RegistryOps.of(JsonOps.INSTANCE, registries)
 
@@ -82,14 +74,15 @@ object Serialization {
 
             val stack = ItemStack.CODEC.parse(jsonOps, itemJson)
                 .resultOrPartial { msg ->
-                    exposedLogger.warn("Could not parse stack in slot {}: {}", slot, msg)
+                    exposedLogger.warn("Could not read stack in slot {}: {}", slot, msg)
                 }
                 .orElse(ItemStack.EMPTY)
 
             if (slot in 0 until inventory.size()) {
                 inventory.setStack(slot, stack)
             } else {
-                exposedLogger.warn("Slot {} is outside inventory bounds (size {})", slot, inventory.size())
+                exposedLogger.warn("Saved slot {} outside inventory bounds (size {})",
+                    slot, inventory.size())
             }
         }
     }
