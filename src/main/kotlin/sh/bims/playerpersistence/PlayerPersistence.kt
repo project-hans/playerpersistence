@@ -23,18 +23,21 @@ class PlayerPersistence : ModInitializer {
     companion object {
         private var modMetadata: ModMetadata = FabricLoader.getInstance().getModContainer("playerpersistence").get().metadata
         var logger: Logger = LoggerFactory.getLogger(modMetadata.id)
+        @JvmStatic
+        lateinit var serverNode: String
+            private set
     }
     
     private var url: String = ""
     private var user: String = ""
     private var pass: String = ""
-    private var serverNode: String = ""
+
 
     fun initialize(url: String, user: String, pass: String, serverNode: String) {
         this.url = url
         this.user = user
         this.pass = pass
-        this.serverNode = serverNode
+        Companion.serverNode = serverNode
 
         if (url.isEmpty() || user.isEmpty() || pass.isEmpty() || serverNode.isEmpty()) {
             logger.error("Initialization failed: One or more parameters (url, user, pass, serverNode) are empty.")
@@ -57,7 +60,7 @@ class PlayerPersistence : ModInitializer {
     }
     
     override fun onInitialize() {
-        logger.info("Loaded library.")
+        logger.info("Loaded PlayerPersistence.")
     }
     
     fun syncInventoryData(player: ServerPlayerEntity) {
@@ -108,10 +111,9 @@ class PlayerPersistence : ModInitializer {
     fun writePlayerCoordinates(player: ServerPlayerEntity) {
         transaction {
             PlayerLocations.upsert(
-                PlayerLocations.uuid, PlayerLocations.node
+                PlayerLocations.uuid
             ) {
                 it[uuid] = player.uuid
-                it[node] = serverNode
                 it[dimension] = player.world.registryKey.value.toString()
                 it[gamemode] = player.interactionManager.gameMode.toString()
                 it[x] = player.pos.x
@@ -125,7 +127,7 @@ class PlayerPersistence : ModInitializer {
     fun syncPlayerCoordinates(player: ServerPlayerEntity) {
         transaction {
             val location = PlayerLocations.selectAll()
-                .where { PlayerLocations.uuid eq player.uuid and (PlayerLocations.node eq serverNode) }
+                .where { PlayerLocations.uuid eq player.uuid }
                 .singleOrNull()
 
             location?.let {
@@ -168,4 +170,5 @@ class PlayerPersistence : ModInitializer {
         syncEnderChestData(player)
         syncPlayerCoordinates(player)
     }
+
 }

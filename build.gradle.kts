@@ -39,6 +39,10 @@ repositories {
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    maven("https://maven.nucleoid.xyz")
+    maven("https://api.modrinth.com/maven")
+    maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://maven.tomalbrc.de")
 }
 
 dependencies {
@@ -50,6 +54,14 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
+
+    // Polymer
+    include(modImplementation("eu.pb4:polymer-core:${project.property("polymer_version")}") { exclude(group = "net.fabricmc.fabric-api") })
+    include(modImplementation("eu.pb4:polymer-virtual-entity:${project.property("polymer_version")}") { exclude(group = "net.fabricmc.fabric-api") })
+    include(modImplementation("eu.pb4:polymer-resource-pack:${project.property("polymer_version")}") { exclude(group = "net.fabricmc.fabric-api") })
+    include(modImplementation("eu.pb4:polymer-resource-pack-extras:${project.property("polymer_version")}") { exclude(group = "net.fabricmc.fabric-api") })
+    include(modImplementation("eu.pb4:polymer-autohost:${project.property("polymer_version")}") { exclude(group = "net.fabricmc.fabric-api") })
+
 
     // ORM
     modImplementation("org.jetbrains.exposed:exposed-core:${project.property("exposed_version")}")?.let { include(it) }

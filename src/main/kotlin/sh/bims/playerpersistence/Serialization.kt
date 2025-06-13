@@ -1,89 +1,98 @@
 ﻿package sh.bims.playerpersistence
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.google.gson.*
 import com.mojang.serialization.JsonOps
 import net.minecraft.inventory.Inventory
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
-import com.google.gson.JsonElement
-import com.mojang.serialization.DynamicOps
-import net.minecraft.registry.DynamicRegistryManager    // = RegistryAccess
-import net.minecraft.registry.RegistryOps
-import org.jetbrains.exposed.sql.exposedLogger
+import net.minecraft.component.ComponentMap
+
+import net.minecraft.registry.Registries
+import net.minecraft.util.Identifier
+import eu.pb4.polymer.core.api.item.PolymerItemUtils
+import net.minecraft.registry.RegistryWrapper
 
 object Serialization {
 
     fun serializeInventory(player: ServerPlayerEntity): String {
         val invArray = JsonArray()
         // Serialize armor slots
+
+        val lookup = player.server.registryManager
         for (i in 0..<player.inventory.size()) {
-            serializeStack(player.inventory.getStack(i), i, player.server.registryManager)?.let { invArray.add(it) }
+            serializeStack(player.inventory.getStack(i), i, lookup)?.let { invArray.add(it) }
         }
         return invArray.toString()
     }
 
     fun serializeEnderChest(player: ServerPlayerEntity): String {
         val enderChestArray = JsonArray()
+        val lookup = player.server.registryManager
         player.enderChestInventory.heldStacks.forEachIndexed { index, itemStack ->
-            serializeStack(itemStack, index, player.server.registryManager)?.let { enderChestArray.add(it) }
+            serializeStack(itemStack, index, lookup)?.let { enderChestArray.add(it) }
         }
         return enderChestArray.toString()
     }
 
-    private fun serializeStack(itemStack: ItemStack, index: Int, registries: DynamicRegistryManager): JsonObject? {
-        if (itemStack.isEmpty) return null                       // nothing to do
-
-        val jsonOps: DynamicOps<JsonElement> =
-            RegistryOps.of(JsonOps.INSTANCE, registries)
-
-        val stackJson = ItemStack.CODEC.encodeStart(jsonOps, itemStack)
-            .resultOrPartial { msg ->
-                exposedLogger.warn("Could not serialise stack in slot {}: {}", index, msg)
-            }
-            .orElse(null)
-
-        return stackJson?.let { json ->
-            JsonObject().apply {
-                addProperty("Slot", index)
-                add("ItemStack", json)
-            }
-        }
-    }
-
     fun deserializeInventory(player: ServerPlayerEntity, inventoryData: String) {
-        deserializeStacks(player.inventory, inventoryData, player.server.registryManager)
+        deserializeStacks(player.inventory, inventoryData)
     }
 
     fun deserializeEnderChest(player: ServerPlayerEntity, enderChestData: String) {
-        deserializeStacks(player.enderChestInventory, enderChestData, player.server.registryManager)
+        deserializeStacks(player.enderChestInventory, enderChestData)
     }
 
-    fun deserializeStacks(inventory: Inventory, stackData: String, registries: DynamicRegistryManager) {
-        val jsonOps: DynamicOps<JsonElement> =
-            RegistryOps.of(JsonOps.INSTANCE, registries)
 
-        val jsonArray = JsonParser.parseString(stackData).asJsonArray
-        inventory.clear()
 
-        jsonArray.forEach { element ->
-            val obj = element.asJsonObject
-            val slot = obj["Slot"].asInt
-            val itemJson = obj["ItemStack"]
 
-            val stack = ItemStack.CODEC.parse(jsonOps, itemJson)
-                .resultOrPartial { msg ->
-                    exposedLogger.warn("Could not read stack in slot {}: {}", slot, msg)
-                }
-                .orElse(ItemStack.EMPTY)
+    // ----------  SERIALISE  ----------
+    fun serializeStack(stack: ItemStack, slot: Int, lookup: RegistryWrapper.WrapperLookup): JsonObject? {
+        if (stack.isEmpty) return null                      // don't spam the DB with empties
 
-            if (slot in 0 until inventory.size()) {
-                inventory.setStack(slot, stack)
-            } else {
-                exposedLogger.warn("Saved slot {} outside inventory bounds (size {})",
-                    slot, inventory.size())
+        // Peel off the vanilla disguise if this is a Polymer item
+        val serverStack = PolymerItemUtils.getRealItemStack(stack, lookup)
+
+        val obj = JsonObject()
+        obj.addProperty("slot",  slot)
+        obj.addProperty("id",    Registries.ITEM.getId(serverStack.item).toString())
+        obj.addProperty("count", serverStack.count)
+
+        // Modern item data lives in Data Components, not old-school NBT
+        if (!serverStack.components.isEmpty) {
+            ComponentMap.CODEC
+                .encodeStart(JsonOps.INSTANCE, serverStack.components)
+                .result()
+                .ifPresent { compsJson -> obj.add("components", compsJson) }
+        }
+        return obj
+    }
+
+    // ----------  DESERIALISE  ----------
+    private fun deserializeStacks(
+        inventory: Inventory,
+        data: String
+    ) {
+        JsonParser.parseString(data).asJsonArray.forEach { element ->
+            val o     = element.asJsonObject
+            val slot  = o["slot"].asInt
+            val id    = Identifier.tryParse(o["id"].asString)
+            val cnt   = o["count"].asInt
+            val stack = ItemStack(Registries.ITEM[id], cnt)
+
+            // restore components (if present)
+            if (o.has("components")) {
+                ComponentMap.CODEC
+                    .parse(JsonOps.INSTANCE, o["components"])
+                    .result()
+                    .ifPresent { stack.applyComponentsFrom(it) }
             }
+            inventory.setStack(slot, stack)
         }
     }
+
+
+
+
+
+
 }
