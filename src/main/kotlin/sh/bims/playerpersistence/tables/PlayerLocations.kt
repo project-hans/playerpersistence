@@ -14,5 +14,5 @@ object PlayerLocations : Table("player_locations_" + PlayerPersistence.serverNod
     val gamemode: Column<String> = varchar("gamemode", 64)
     val lastUpdated: Column<java.time.Instant> = timestamp("last_updated").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerLocations_UUID_Node")
+    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerLocations_UUID_" + PlayerPersistence.serverNode)
 }

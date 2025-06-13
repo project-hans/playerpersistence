@@ -10,5 +10,5 @@ object PlayerInventories : Table("player_inventories_" + PlayerPersistence.serve
     val inventoryData: Column<String> = text("inventory_data")
     val lastUpdated: Column<java.time.Instant> = timestamp("last_updated").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerInventories_UUID")
+    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerInventories_UUID_" + PlayerPersistence.serverNode)
 }

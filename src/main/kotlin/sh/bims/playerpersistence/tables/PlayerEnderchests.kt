@@ -11,5 +11,5 @@ object PlayerEnderchests : Table("player_enderchests_" + PlayerPersistence.serve
     val chestData: Column<String> = text("chest_data")
     val lastUpdated: Column<java.time.Instant> = timestamp("last_updated").defaultExpression(org.jetbrains.exposed.sql.javatime.CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerEnderchests_UUID")
+    override val primaryKey = PrimaryKey(uuid, name = "PK_PlayerEnderchests_UUID_" + PlayerPersistence.serverNode)
 }
