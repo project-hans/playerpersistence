@@ -5,12 +5,10 @@ import com.mojang.serialization.JsonOps
 import net.minecraft.inventory.Inventory
 import net.minecraft.item.ItemStack
 import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.component.ComponentMap
-
-import net.minecraft.registry.Registries
-import net.minecraft.util.Identifier
+import net.minecraft.registry.RegistryOps
 import eu.pb4.polymer.core.api.item.PolymerItemUtils
-import net.minecraft.registry.RegistryWrapper
+import net.minecraft.registry.RegistryWrapper.WrapperLookup
+import sh.bims.playerpersistence.PlayerPersistence.Companion.logger
 
 object Serialization {
 
@@ -35,64 +33,58 @@ object Serialization {
     }
 
     fun deserializeInventory(player: ServerPlayerEntity, inventoryData: String) {
-        deserializeStacks(player.inventory, inventoryData)
+        val lookup = player.server.registryManager
+        deserializeStacks(player.inventory, inventoryData, lookup)
     }
 
     fun deserializeEnderChest(player: ServerPlayerEntity, enderChestData: String) {
-        deserializeStacks(player.enderChestInventory, enderChestData)
+        val lookup = player.server.registryManager
+        deserializeStacks(player.enderChestInventory, enderChestData, lookup)
     }
 
+    /* ─────────────────────────────── SERIALISE ONE SLOT ─────────────────────────────── */
+    fun serializeStack(
+        stack: ItemStack,
+        slot: Int,
+        lookup: WrapperLookup          // e.g. player.server.registryManager
+    ): JsonObject? {
+        if (stack.isEmpty) return null
 
+        // Strip Polymer disguise → real server item
+        val real = PolymerItemUtils.getRealItemStack(stack, lookup)
 
+        // Registry-aware ops keep every component (enchants, name, …)
+        val ops = RegistryOps.of(JsonOps.INSTANCE, lookup)
 
-    // ----------  SERIALISE  ----------
-    fun serializeStack(stack: ItemStack, slot: Int, lookup: RegistryWrapper.WrapperLookup): JsonObject? {
-        if (stack.isEmpty) return null                      // don't spam the DB with empties
+        val jsonStack = ItemStack.CODEC.encodeStart(ops, real)
+            .resultOrPartial { logger.error("Stack encode failed: {}", it) }
+            .orElse(null) ?: return null
 
-        // Peel off the vanilla disguise if this is a Polymer item
-        val serverStack = PolymerItemUtils.getRealItemStack(stack, lookup)
-
-        val obj = JsonObject()
-        obj.addProperty("slot",  slot)
-        obj.addProperty("id",    Registries.ITEM.getId(serverStack.item).toString())
-        obj.addProperty("count", serverStack.count)
-
-        // Modern item data lives in Data Components, not old-school NBT
-        if (!serverStack.components.isEmpty) {
-            ComponentMap.CODEC
-                .encodeStart(JsonOps.INSTANCE, serverStack.components)
-                .result()
-                .ifPresent { compsJson -> obj.add("components", compsJson) }
+        return JsonObject().apply {
+            addProperty("slot", slot)
+            add("stack", jsonStack)     // full codec payload
         }
-        return obj
     }
 
-    // ----------  DESERIALISE  ----------
-    private fun deserializeStacks(
+    /* ─────────────────────────── DESERIALISE WHOLE INVENTORY ────────────────────────── */
+    fun deserializeStacks(
         inventory: Inventory,
-        data: String
+        data: String,
+        lookup: WrapperLookup
     ) {
-        JsonParser.parseString(data).asJsonArray.forEach { element ->
-            val o     = element.asJsonObject
-            val slot  = o["slot"].asInt
-            val id    = Identifier.tryParse(o["id"].asString)
-            val cnt   = o["count"].asInt
-            val stack = ItemStack(Registries.ITEM[id], cnt)
+        val ops = RegistryOps.of(JsonOps.INSTANCE, lookup)
+        val array = JsonParser.parseString(data).asJsonArray
 
-            // restore components (if present)
-            if (o.has("components")) {
-                ComponentMap.CODEC
-                    .parse(JsonOps.INSTANCE, o["components"])
-                    .result()
-                    .ifPresent { stack.applyComponentsFrom(it) }
-            }
+        inventory.clear()
+        for (elem in array) {
+            val obj   = elem.asJsonObject
+            val slot  = obj["slot"].asInt
+            val stack = ItemStack.CODEC.parse(ops, obj["stack"])
+                .resultOrPartial { logger.error("Stack decode failed: {}", it) }
+                .orElse(ItemStack.EMPTY)
+
             inventory.setStack(slot, stack)
         }
     }
-
-
-
-
-
 
 }
